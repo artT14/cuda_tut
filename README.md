@@ -15,7 +15,7 @@
 - *Host*	The CPU and its memory (host memory)
 - *Device*	The GPU and its memory (device memory)
 
-### Heterogeneous Computing
+## Heterogeneous Computing
 ```
 parallel_fn(){
 	//...
@@ -115,3 +115,95 @@ int main(void){
 	return 0;
 }
 ```
+
+### Blocks
+```
+add<<<1,1>>>(); //execute once
+add<<<N,1>>>(); //execute N times in parallel
+```
+
+#### Vector Addition
+```
+__global__ void add(int *a, int *b, int *c){
+	c[blockIdx.x] = a[blockIdx.x] + b[blockIdx.x];
+}
+#define N 512
+
+int main(void){
+	int a, b, c; //host copies of a, b, c
+	int *d_a, *d_b, *d_c; //device copies of a, b, c
+	int size = N * sizeof(int);
+	// Allocate space for device copies of a, b, c
+	cudaMalloc((void **)&d_a, size);
+	cudaMalloc((void **)&d_b, size);
+	cudaMalloc((void **)&d_c, size);
+	// Setup input values
+	a = (int *)malloc(size); random_ints(a, N);
+	b = (int *)malloc(size); random_ints(b, N);
+	c = (int *)malloc(size);
+	//Copy inputs to device
+	cudaMemcpy(d_a, &a, size, cudaMemcpyHostToDevice);
+	cudaMemcpy(d_b, &b, size, cudaMemcpyHostToDevice);
+	//Launc add() kernel on GPU with N blocks
+	add<<<N,1>>>(d_a,d_b,d_c);
+	//Copy result back to host
+	cudaMemcpy(d_b, &b, size, cudaMemcpyDeviceToHost);
+	//Cleanup
+	free(a); free(b); free(c);
+	cudaFree(d_a); cudaFree(d_b); cudaFree(d_c);
+	return 0;
+}
+```
+
+- Each parallel invocation of add() is referred to as a block
+- The set of blocks is referred to as a grid
+- Each invocation can refer to its block index using blockId.x
+- By using blockIdx.x to index into the array, each block handles a different index
+
+Parallel calls, arbitrary schedule
+*block 0* c[0] = a[0] + b[0]
+*block 1* c[1] = a[1] + b[1]
+*block 2* c[2] = a[2] + b[2]
+...
+*block n* c[n] = a[n] + b[n]
+
+
+```
+#include <iostream>
+#include <math.h>
+__global__
+void add(int n, float *x, float *y)
+{
+	int index = threadIdx.x;
+	int stride = blockDim.x;
+	for(int i = index; i < n; i += stride)
+		y[i] = x[i] + y[i];
+}
+int main(void)
+{
+	int N = 1<<20;
+	float *x, *y;
+	int size = N*sizeof(float);
+	// allocate Unified Memory -- accessible from CPU or GPU
+	cudaMallocManaged(&x,size);
+	cudaMallocManaged(&y,size);
+	// initialize x and y arrays on the host
+	for(int i = 0; i < N; i++){
+		x[i] = 1.0f;
+		y[i] = 2.0f;
+	}
+	// RUN kernel on 1M elements on the GPU
+	add<<<1,256>>>(N,x,y);
+	// Wait for GPU to finish before accessing on host
+	cudaDeviceSynchronize();
+	// Check for errors (all values should be 3.0f)
+	for(int i = 0; i < N; i++)
+		maxError = fmax(maxError, fabs(y[i]-3.0f));
+	std::cout << "Max error: " << maxError << std::endl;
+	// Free memory
+	cudaFree(x);
+	cudaFree(y);
+	return 0;
+}
+```
+
