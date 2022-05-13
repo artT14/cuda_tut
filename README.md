@@ -16,7 +16,8 @@
 - *Device*	The GPU and its memory (device memory)
 
 ### Heterogeneous Computing
-```parallel_fn(){
+```
+parallel_fn(){
 	//...
 	//parallel code
 	//...
@@ -25,4 +26,5 @@ code(){
 	//serial code
 	//parallel code
 	//serial code
-}```
+}
+```
