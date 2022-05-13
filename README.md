@@ -45,11 +45,10 @@ int main(void){
 
 - Standard C code
 - nvcc can be used to compile
-
-``
+```
 $ nvcc HelloWorld.cu
 $ ./a.out
-``
+```
 
 ### Hello World with Device Code
 ```
@@ -61,4 +60,26 @@ int main(void){
 	printf("Hello World!\n");
 	return 0;
 }
+```
+
+Kernel code is processed by NVIDIA compiler
+`__global__ void mykernel(void)`
+
+Host code is processed by host compiler (e.g. gcc)
+
+Triple angle brackets indicate call from host to device code
+`mykernel<<<1,1>>>();`
+
+### Memory Management
+- *Device pointers* point to *GPU* memory
+	- May be passed to/from host code
+	- May not be dereferenced in host code
+- *Host pointers* point to *CPU* memory
+	- May be passed to/from host code
+	- May not be dereferenced in host code
+
+```
+cudaMalloc(); // == malloc()
+cudaFree(); // == free()
+cudaMemcpy(): // == memcpy()
 ```
